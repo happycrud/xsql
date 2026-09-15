@@ -1,13 +1,13 @@
 module github.com/goflower-io/xsql
 
-go 1.24.0
+go 1.26.0
 
 require (
 	github.com/go-sql-driver/mysql v1.7.1
-	github.com/jackc/pgx/v5 v5.3.1
+	github.com/jackc/pgx/v5 v5.11.0
 	github.com/mattn/go-sqlite3 v1.14.37
 	github.com/ncruces/go-sqlite3 v0.32.0
-	golang.org/x/exp v0.0.0-20251023183803-a4bb9ffd2546
+	golang.org/x/exp v0.0.0-20260908205506-85c1c2202aba
 	modernc.org/sqlite v1.46.1
 )
 
@@ -15,13 +15,14 @@ require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
-	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
+	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
+	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/ncruces/julianday v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/tetratelabs/wazero v1.11.0 // indirect
-	golang.org/x/crypto v0.48.0 // indirect
+	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/text v0.34.0 // indirect
 	modernc.org/libc v1.67.6 // indirect

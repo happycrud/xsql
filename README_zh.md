@@ -16,6 +16,7 @@
 - **可组合谓词** — `And`、`Or`、`Not` 组合复杂 WHERE 条件
 - **自定义结果扫描** — 通过 JSON tag 将结果扫描到任意结构体
 - **调试模式** — 一行代码打印生成的 SQL 和参数
+- **可配置日志** — 接入任意 `Printf` 日志器，或复用 `log/slog`，支持运行时开启/关闭
 
 ---
 
@@ -54,10 +55,20 @@ db, _ := postgres.NewDB(&xsql.Config{
     DSN: "host=127.0.0.1 user=postgres password=123456 dbname=test sslmode=disable",
 })
 
-import "github.com/goflower-io/xsql/sqlite3"
-db, _ := sqlite3.NewDB(&xsql.Config{
+import "github.com/goflower-io/xsql/sqlite"
+db, _ := sqlite.NewDB(&xsql.Config{
     DSN: "/path/to/my.db",
 })
+```
+
+SQLite 提供三个可互换的驱动。默认的 `github.com/goflower-io/xsql/sqlite`
+包使用 [github.com/ncruces/go-sqlite3](https://github.com/ncruces/go-sqlite3)
+（纯 Go，无需 cgo）。如需其他驱动，导入对应的子包：
+
+```go
+import "github.com/goflower-io/xsql/sqlite"         // 默认：ncruces/go-sqlite3（无需 cgo）
+import "github.com/goflower-io/xsql/sqlite/mattn"   // mattn/go-sqlite3（cgo）
+import "github.com/goflower-io/xsql/sqlite/modernc" // modernc.org/sqlite（纯 Go）
 ```
 
 ---
@@ -162,12 +173,53 @@ type Config struct {
 
 ---
 
+## 日志配置
+
+SQL 日志可选且完全可配置。通过 `SetLogger` 给 `*DB` 设置日志器，即可记录它执行的所有 SQL：
+
+```go
+import (
+    "log/slog"
+    "github.com/goflower-io/xsql"
+)
+
+db, _ := mysql.NewDB(&xsql.Config{DSN: "..."})
+db.SetLogger(xsql.SlogLogger(slog.Default())) // 接入应用的 slog 日志器
+```
+
+`Logger` 只包含一个 `Printf` 方法，任何日志器都可以使用，包括标准库的
+`*log.Logger`：
+
+```go
+type Logger interface {
+    Printf(format string, v ...any)
+}
+```
+
+SQL 的 context 和执行错误都会包含在传给 `Printf` 的消息中，日志器无需额外
+方法。`xsql.SlogLogger` 可将 `*slog.Logger` 适配为 `Logger`，以 debug 级别输出。
+
+也可以在运行时修改日志器，传 `nil` 关闭日志：
+
+```go
+db.SetLogger(myLogger) // 开启 / 替换
+db.SetLogger(nil)      // 关闭
+```
+
+---
+
 ## 调试模式
+
+`xsql.Debug` 可包装任意 `DBI`，打印每条 SQL（包括事务内执行的 SQL）。可通过
+`WithLogger` 覆盖默认日志器（`log.Default()`）：
 
 ```go
 // 包装任意 *DB，打印 SQL 和参数
 user.Create(xsql.Debug(db)).SetUser(u).Save(ctx)
 // [xsql] INSERT INTO `user` (`name`, `age`, `ctime`, `mtime`) VALUES (?, ?, ?, ?) [alice 18 ...]
+
+// 自定义日志器
+user.Create(xsql.Debug(db, xsql.WithLogger(xsql.SlogLogger(slog.Default())))).SetUser(u).Save(ctx)
 ```
 
 ---
@@ -186,7 +238,9 @@ user.Create(xsql.Debug(db)).SetUser(u).Save(ctx)
 |---|---|---|
 | MySQL / MariaDB | `github.com/go-sql-driver/mysql` | `github.com/goflower-io/xsql/mysql` |
 | PostgreSQL | `github.com/jackc/pgx/v5` | `github.com/goflower-io/xsql/postgres` |
-| SQLite3 | `github.com/mattn/go-sqlite3` | `github.com/goflower-io/xsql/sqlite3` |
+| SQLite3（默认） | `github.com/ncruces/go-sqlite3` | `github.com/goflower-io/xsql/sqlite` |
+| SQLite3（cgo） | `github.com/mattn/go-sqlite3` | `github.com/goflower-io/xsql/sqlite/mattn` |
+| SQLite3（纯 Go） | `modernc.org/sqlite` | `github.com/goflower-io/xsql/sqlite/modernc` |
 
 ---
 

@@ -16,6 +16,7 @@
 - **Composable predicates** — `And`, `Or`, `Not` combinators for complex WHERE clauses
 - **Custom result scanning** — scan into any struct using JSON tags
 - **Debug mode** — print generated SQL and parameters with one wrapper call
+- **Configurable logging** — plug in any `Printf` logger, or reuse `log/slog`; enable/disable at runtime
 
 ---
 
@@ -54,10 +55,20 @@ db, _ := postgres.NewDB(&xsql.Config{
     DSN: "host=127.0.0.1 user=postgres password=123456 dbname=test sslmode=disable",
 })
 
-import "github.com/goflower-io/xsql/sqlite3"
-db, _ := sqlite3.NewDB(&xsql.Config{
+import "github.com/goflower-io/xsql/sqlite"
+db, _ := sqlite.NewDB(&xsql.Config{
     DSN: "/path/to/my.db",
 })
+```
+
+SQLite ships with three interchangeable drivers. The default `github.com/goflower-io/xsql/sqlite`
+package uses [github.com/ncruces/go-sqlite3](https://github.com/ncruces/go-sqlite3)
+(pure Go, no cgo). Import a sub-package to pick a different driver:
+
+```go
+import "github.com/goflower-io/xsql/sqlite"         // default: ncruces/go-sqlite3 (no cgo)
+import "github.com/goflower-io/xsql/sqlite/mattn"   // mattn/go-sqlite3 (cgo)
+import "github.com/goflower-io/xsql/sqlite/modernc" // modernc.org/sqlite (pure Go)
 ```
 
 ---
@@ -162,12 +173,55 @@ type Config struct {
 
 ---
 
+## Logging
+
+SQL logging is optional and fully configurable. Set a logger on the `*DB` with
+`SetLogger` to log every statement it executes:
+
+```go
+import (
+    "log/slog"
+    "github.com/goflower-io/xsql"
+)
+
+db, _ := mysql.NewDB(&xsql.Config{DSN: "..."})
+db.SetLogger(xsql.SlogLogger(slog.Default())) // route to the app's slog logger
+```
+
+`Logger` has a single `Printf` method, so any logger works, including the
+standard library `*log.Logger`:
+
+```go
+type Logger interface {
+    Printf(format string, v ...any)
+}
+```
+
+The statement context and any execution error are included in the message, so
+loggers need no extra methods. `xsql.SlogLogger` adapts a `*slog.Logger` and
+forwards messages at debug level.
+
+Logging can also be changed at runtime, and disabled by passing `nil`:
+
+```go
+db.SetLogger(myLogger) // enable / replace
+db.SetLogger(nil)      // disable
+```
+
+---
+
 ## Debug Mode
+
+`xsql.Debug` wraps any `DBI` and logs every statement, including those executed
+inside transactions. Use `WithLogger` to override the default (`log.Default()`):
 
 ```go
 // Wrap any *DB to log SQL and params
 user.Create(xsql.Debug(db)).SetUser(u).Save(ctx)
 // [xsql] INSERT INTO `user` (`name`, `age`, `ctime`, `mtime`) VALUES (?, ?, ?, ?) [alice 18 ...]
+
+// Custom logger
+user.Create(xsql.Debug(db, xsql.WithLogger(xsql.SlogLogger(slog.Default())))).SetUser(u).Save(ctx)
 ```
 
 ---
@@ -186,7 +240,9 @@ user.Create(xsql.Debug(db)).SetUser(u).Save(ctx)
 |---|---|---|
 | MySQL / MariaDB | `github.com/go-sql-driver/mysql` | `github.com/goflower-io/xsql/mysql` |
 | PostgreSQL | `github.com/jackc/pgx/v5` | `github.com/goflower-io/xsql/postgres` |
-| SQLite3 | `github.com/mattn/go-sqlite3` | `github.com/goflower-io/xsql/sqlite3` |
+| SQLite3 (default) | `github.com/ncruces/go-sqlite3` | `github.com/goflower-io/xsql/sqlite` |
+| SQLite3 (cgo) | `github.com/mattn/go-sqlite3` | `github.com/goflower-io/xsql/sqlite/mattn` |
+| SQLite3 (pure Go) | `modernc.org/sqlite` | `github.com/goflower-io/xsql/sqlite/modernc` |
 
 ---
 
